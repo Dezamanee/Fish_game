@@ -1,0 +1,17 @@
+{
+  "name": "fish-game",
+  "productName": "Fish Game",
+  "version": "1.0.0",
+  "description": "Тихая заводь — 2D рыбалка",
+  "main": "main.js",
+  "author": "Dezamanee",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-packager . FishGame --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.ico --executable-name=FishGame --app-version=1.0.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.3.1"
+  }
+}

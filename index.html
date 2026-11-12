@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>Тихая заводь — 2D рыбалка</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d2b3d'/%3E%3Cpath d='M15 34 L4 23 Q7 34 4 45 Z' fill='%23f0c987'/%3E%3Cellipse cx='35' cy='34' rx='21' ry='11' fill='%23f0c987'/%3E%3Ccircle cx='45' cy='31' r='2.6' fill='%23121b22'/%3E%3C/svg%3E">
 <style>
   :root{ --gold:#f0c987; }
   *{box-sizing:border-box}
@@ -46,9 +47,123 @@
   .card button:disabled{background:rgba(255,255,255,.08);color:#5f7787;cursor:default}
   .shopfoot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px;gap:12px;flex-wrap:wrap}
   .stats{font-size:12px;color:#7f9aab;line-height:1.6}
+  #catchCard{position:absolute;inset:0;display:none;place-items:center;pointer-events:none}
+  #catchCard.show{display:grid}
+  .catchBox{display:flex;align-items:center;gap:18px;width:min(430px,88%);
+    background:rgba(6,20,30,.95);border:1px solid rgba(240,201,135,.45);border-radius:18px;
+    padding:18px 22px;box-shadow:0 24px 70px rgba(0,0,0,.65);pointer-events:auto;
+    animation:catchIn .22s ease-out}
+  @keyframes catchIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+  .catchArt{width:150px;height:96px;flex:none;display:grid;place-items:center;
+    background:rgba(255,255,255,.04);border-radius:14px}
+  .catchArt svg{width:130px;height:70px}
+  .catchInfo{flex:1;min-width:0}
+  .catchRarity{font-size:11px;letter-spacing:.12em;font-weight:600}
+  .catchName{font-size:24px;font-weight:700;color:#f4fbff;margin-top:2px}
+  .catchWeight{font-size:15px;color:rgba(220,238,248,.8);margin-top:2px}
+  .catchPrice{font-size:21px;font-weight:700;color:var(--gold);margin-top:6px}
+  .catchBest{font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--gold);margin-top:8px}
+  .catchHint{font-size:12px;color:rgba(180,205,220,.55);margin-top:8px}
+  .bookTitle{font-size:15px;color:#cfe3f0;margin:20px 0 2px;font-weight:600}
+  .bookSub{font-size:12px;color:#7f9aab;margin-bottom:8px}
+  .book{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .bookItem{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
+    border-radius:12px;padding:8px 6px;text-align:center}
+  .bookItem.locked{opacity:.42;filter:grayscale(1)}
+  .bookItem svg{width:100%;height:46px;display:block}
+  .bookItem .bn{font-size:11px;color:#dfeef7;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bookItem .bw{font-size:10px;color:#7f9aab;margin-top:1px}
+  @media (max-width:520px){
+    .catchArt{width:96px;height:70px}
+    .catchArt svg{width:86px;height:52px}
+    .catchName{font-size:20px}
+  }
 </style>
 </head>
 <body>
+<svg aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden">
+  <symbol id="fish-plotva" viewBox="0 0 120 64">
+    <path d="M26 32 L4 15 Q11 32 4 49 Z" fill="#8ea3b1"/>
+    <ellipse cx="66" cy="32" rx="42" ry="14" fill="#cfdae2"/>
+    <path d="M50 20 L58 6 L74 19 Z" fill="#a9bcc8"/>
+    <path d="M50 43 L60 54 L72 44 Z" fill="#b7c8d3"/>
+    <circle cx="95" cy="28" r="3.6" fill="#fff"/>
+    <circle cx="96" cy="28" r="1.9" fill="#121b22"/>
+  </symbol>
+  <symbol id="fish-karas" viewBox="0 0 120 64">
+    <path d="M30 32 L2 12 Q10 32 2 52 Z" fill="#b9863c"/>
+    <ellipse cx="64" cy="32" rx="38" ry="21" fill="#d8ae52"/>
+    <path d="M48 14 L58 2 L72 13 Z" fill="#c99c45"/>
+    <path d="M78 18 Q86 32 78 46" stroke="#c99c45" stroke-width="2" fill="none"/>
+    <circle cx="92" cy="26" r="3.8" fill="#fff"/>
+    <circle cx="93" cy="26" r="2" fill="#121b22"/>
+  </symbol>
+  <symbol id="fish-okun" viewBox="0 0 120 64">
+    <path d="M26 32 L4 14 Q11 32 4 50 Z" fill="#4f7a34"/>
+    <ellipse cx="64" cy="32" rx="40" ry="17" fill="#8fbe62"/>
+    <path d="M42 16 L40 48 M54 14 L52 50 M66 13 L64 51" stroke="#4f7a34" stroke-width="4" opacity=".6"/>
+    <path d="M50 17 L58 4 L72 16 Z" fill="#6e9a49"/>
+    <circle cx="94" cy="27" r="3.6" fill="#fff"/>
+    <circle cx="95" cy="27" r="1.9" fill="#121b22"/>
+  </symbol>
+  <symbol id="fish-lesch" viewBox="0 0 120 64">
+    <path d="M32 32 L8 12 Q14 32 8 52 Z" fill="#7d8f9e"/>
+    <ellipse cx="66" cy="32" rx="36" ry="23" fill="#a9b8c4"/>
+    <path d="M46 10 L64 2 L80 12 Z" fill="#8fa0ad"/>
+    <circle cx="92" cy="26" r="3.4" fill="#fff"/>
+    <circle cx="93" cy="26" r="1.8" fill="#121b22"/>
+  </symbol>
+  <symbol id="fish-shchuka" viewBox="0 0 120 64">
+    <ellipse cx="60" cy="32" rx="44" ry="12" fill="#6d9452"/>
+    <path d="M102 32 L118 27 L118 37 Z" fill="#5d8145"/>
+    <path d="M22 32 L2 16 Q12 32 2 48 Z" fill="#557a3f"/>
+    <path d="M40 21 L44 8 L56 20 Z" fill="#5d8145"/>
+    <path d="M52 43 L58 54 L68 43 Z" fill="#5d8145"/>
+    <circle cx="94" cy="27" r="3" fill="#fff"/>
+    <circle cx="95" cy="27" r="1.6" fill="#121b22"/>
+    <circle cx="72" cy="28" r="1.5" fill="#4f7038"/>
+    <circle cx="60" cy="36" r="1.5" fill="#4f7038"/>
+    <circle cx="48" cy="29" r="1.5" fill="#4f7038"/>
+  </symbol>
+  <symbol id="fish-sudak" viewBox="0 0 120 64">
+    <ellipse cx="62" cy="33" rx="42" ry="13" fill="#7790ad"/>
+    <path d="M22 33 L2 16 Q12 33 2 50 Z" fill="#5b7290"/>
+    <path d="M38 21 L44 6 L50 20 L54 4 L60 19 L64 7 L70 20 Z" fill="#5b7290"/>
+    <path d="M52 46 L60 55 L70 46 Z" fill="#5b7290"/>
+    <circle cx="94" cy="29" r="3.2" fill="#fff"/>
+    <circle cx="95" cy="29" r="1.7" fill="#121b22"/>
+  </symbol>
+  <symbol id="fish-som" viewBox="0 0 120 64">
+    <ellipse cx="60" cy="34" rx="44" ry="15" fill="#55555f"/>
+    <path d="M18 34 L2 20 Q10 34 2 47 Z" fill="#464650"/>
+    <path d="M96 30 Q110 23 117 29" stroke="#3a3a44" stroke-width="2" fill="none"/>
+    <path d="M96 39 Q110 46 115 41" stroke="#3a3a44" stroke-width="2" fill="none"/>
+    <path d="M40 22 L50 26 M56 20 L66 25 M72 20 L80 24" stroke="#43434d" stroke-width="2" opacity=".8"/>
+    <circle cx="88" cy="29" r="3.2" fill="#fff"/>
+    <circle cx="89" cy="29" r="1.7" fill="#121b22"/>
+  </symbol>
+  <symbol id="fish-oster" viewBox="0 0 120 64">
+    <ellipse cx="60" cy="33" rx="44" ry="13" fill="#8a8f7a"/>
+    <path d="M100 33 L114 28 L114 38 Z" fill="#71765f"/>
+    <path d="M16 33 L2 18 Q9 33 2 48 Z" fill="#6f7460"/>
+    <path d="M100 38 Q106 42 110 39 M100 39 Q104 44 108 43" stroke="#71765f" stroke-width="1.6" fill="none"/>
+    <circle cx="94" cy="29" r="3" fill="#fff"/>
+    <circle cx="95" cy="29" r="1.6" fill="#121b22"/>
+    <circle cx="58" cy="20" r="2.4" fill="#71765f"/>
+    <circle cx="44" cy="21" r="2.4" fill="#71765f"/>
+    <circle cx="30" cy="23" r="2.4" fill="#71765f"/>
+  </symbol>
+  <symbol id="fish-gold" viewBox="0 0 120 64">
+    <path d="M32 32 L4 10 Q16 32 4 56 Z" fill="#f2b62c"/>
+    <ellipse cx="64" cy="33" rx="36" ry="18" fill="#ffd34d"/>
+    <path d="M46 17 L58 2 L74 16 Z" fill="#ffd968"/>
+    <path d="M46 49 L58 61 L70 48 Z" fill="#ffd968"/>
+    <path d="M58 24 Q64 33 58 42 M70 22 Q76 33 70 44" stroke="#f2b62c" stroke-width="1.6" fill="none" opacity=".8"/>
+    <circle cx="90" cy="28" r="3.6" fill="#fff"/>
+    <circle cx="91" cy="28" r="1.9" fill="#121b22"/>
+    <path d="M16 14 L18 6 L20 14 L28 16 L20 18 L18 26 L16 18 L8 16 Z" fill="#fff8cf"/>
+  </symbol>
+</svg>
 <div id="stage">
   <div id="frame">
     <canvas id="game"></canvas>
@@ -63,9 +178,27 @@
           <div class="sub">Лучшее удилище и леска помогают вываживать крупную рыбу, прикормка ускоряет поклёвки и приманивает редкие виды.</div>
           <div class="balance">Баланс: <b id="shopMoney">0 ₽</b></div>
           <div id="cards"></div>
+          <h3 class="bookTitle">Книга рыбака</h3>
+          <div class="bookSub" id="bookSub"></div>
+          <div class="book" id="book"></div>
           <div class="shopfoot">
             <div class="stats" id="shopStats"></div>
             <button class="btn" id="btnClose">Закрыть</button>
+          </div>
+        </div>
+      </div>
+      <div id="catchCard">
+        <div class="catchBox">
+          <div class="catchArt">
+            <svg viewBox="0 0 120 64"><use id="catchUse" href="#fish-plotva"></use></svg>
+          </div>
+          <div class="catchInfo">
+            <div class="catchRarity" id="catchRarity"></div>
+            <div class="catchName" id="catchName"></div>
+            <div class="catchWeight" id="catchWeight"></div>
+            <div class="catchPrice" id="catchPrice"></div>
+            <div class="catchBest" id="catchBest" style="display:none">НОВЫЙ РЕКОРД</div>
+            <div class="catchHint">Клик — продолжить</div>
           </div>
         </div>
       </div>
@@ -111,6 +244,7 @@ const P = {
   money: saved.money || 0,
   caught: saved.caught || 0,
   best: saved.best || null,
+  species: saved.species || {},
   muted: !!saved.muted,
   up: {
     rod: (saved.up && saved.up.rod) || 0,
@@ -121,21 +255,22 @@ const P = {
 function persist(){
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      money: P.money, caught: P.caught, best: P.best, muted: P.muted, up: P.up
+      money: P.money, caught: P.caught, best: P.best, species: P.species,
+      muted: P.muted, up: P.up
     }));
   } catch (e) {}
 }
 
 const FISH = [
-  { name: 'Плотва',        r: 'common',    w: 100, kg: [0.08, 0.45], price: 12,   col: '#c3d0d8', diff: 0.55 },
-  { name: 'Карась',        r: 'common',    w: 96,  kg: [0.15, 1.10], price: 10,   col: '#d8ae52', diff: 0.62 },
-  { name: 'Окунь',         r: 'common',    w: 92,  kg: [0.12, 1.20], price: 14,   col: '#8fbe62', diff: 0.70 },
-  { name: 'Лещ',           r: 'uncommon',  w: 56,  kg: [0.40, 2.60], price: 22,   col: '#a9b8c4', diff: 0.86 },
-  { name: 'Щука',          r: 'uncommon',  w: 42,  kg: [0.80, 6.00], price: 32,   col: '#6d9452', diff: 1.00 },
-  { name: 'Судак',         r: 'rare',      w: 22,  kg: [0.70, 5.00], price: 55,   col: '#7790ad', diff: 1.16 },
-  { name: 'Сом',           r: 'rare',      w: 14,  kg: [4.00, 28.0], price: 65,   col: '#55555f', diff: 1.34 },
-  { name: 'Осётр',         r: 'epic',      w: 6,   kg: [6.00, 38.0], price: 140,  col: '#9a9f86', diff: 1.55 },
-  { name: 'Золотая рыбка', r: 'legendary', w: 1.6, kg: [0.10, 0.55], price: 1200, col: '#ffd34d', diff: 1.90 }
+  { name: 'Плотва',        r: 'common',    w: 100, kg: [0.08, 0.45], price: 12,   col: '#c3d0d8', diff: 0.55, svg: 'fish-plotva' },
+  { name: 'Карась',        r: 'common',    w: 96,  kg: [0.15, 1.10], price: 10,   col: '#d8ae52', diff: 0.62, svg: 'fish-karas' },
+  { name: 'Окунь',         r: 'common',    w: 92,  kg: [0.12, 1.20], price: 14,   col: '#8fbe62', diff: 0.70, svg: 'fish-okun' },
+  { name: 'Лещ',           r: 'uncommon',  w: 56,  kg: [0.40, 2.60], price: 22,   col: '#a9b8c4', diff: 0.86, svg: 'fish-lesch' },
+  { name: 'Щука',          r: 'uncommon',  w: 42,  kg: [0.80, 6.00], price: 32,   col: '#6d9452', diff: 1.00, svg: 'fish-shchuka' },
+  { name: 'Судак',         r: 'rare',      w: 22,  kg: [0.70, 5.00], price: 55,   col: '#7790ad', diff: 1.16, svg: 'fish-sudak' },
+  { name: 'Сом',           r: 'rare',      w: 14,  kg: [4.00, 28.0], price: 65,   col: '#55555f', diff: 1.34, svg: 'fish-som' },
+  { name: 'Осётр',         r: 'epic',      w: 6,   kg: [6.00, 38.0], price: 140,  col: '#9a9f86', diff: 1.55, svg: 'fish-oster' },
+  { name: 'Золотая рыбка', r: 'legendary', w: 1.6, kg: [0.10, 0.55], price: 1200, col: '#ffd34d', diff: 1.90, svg: 'fish-gold' }
 ];
 const RARITY = {
   common:    { label: 'обычная',      col: '#cfe0ea' },
@@ -292,7 +427,7 @@ function pickFish(power){
   const lo = pick.kg[0], hi = pick.kg[1];
   const kg = lo + (hi - lo) * Math.pow(Math.random(), 1.7);
   return {
-    name: pick.name, r: pick.r, col: pick.col, diff: pick.diff,
+    name: pick.name, r: pick.r, col: pick.col, diff: pick.diff, svg: pick.svg,
     kg: Math.round(kg * 100) / 100,
     value: Math.max(1, Math.round(kg * pick.price)),
     pull: true, timer: rnd(0.5, 1.1)
@@ -374,6 +509,10 @@ function landFish(){
   P.caught += 1;
   const isBest = !P.best || f.kg > P.best.kg;
   if (isBest) { P.best = { name: f.name, kg: f.kg, r: f.r }; g.bestFlash = 1; }
+  const prev = P.species[f.name];
+  if (!prev || f.kg > prev.kg) {
+    P.species[f.name] = { kg: f.kg, r: f.r, svg: f.svg };
+  }
   persist();
   g.mode = 'landed';
   g.popup = { fish: f, t: 0, best: isBest };
@@ -384,6 +523,7 @@ function landFish(){
   splash(g.bob.x, g.bob.y, 22, 1.3);
   floatText(g.bob.x, g.bob.y - 70, '+' + money(f.value) + ' ₽', '#ffe9b0');
   sfx.land();
+  showCatchCard(f, isBest);
   renderShopMoney();
 }
 function closePopup(){
@@ -391,6 +531,7 @@ function closePopup(){
   g.mode = 'idle';
   g.fish = null;
   g.charge = 0;
+  catchCard.classList.remove('show');
 }
 
 function press(){
@@ -443,6 +584,42 @@ const cards = document.getElementById('cards');
 const shopMoney = document.getElementById('shopMoney');
 const shopStats = document.getElementById('shopStats');
 const btnMute = document.getElementById('btnMute');
+const catchCard = document.getElementById('catchCard');
+const catchUse = document.getElementById('catchUse');
+const catchRarity = document.getElementById('catchRarity');
+const catchName = document.getElementById('catchName');
+const catchWeight = document.getElementById('catchWeight');
+const catchPrice = document.getElementById('catchPrice');
+const catchBest = document.getElementById('catchBest');
+const bookEl = document.getElementById('book');
+const bookSub = document.getElementById('bookSub');
+
+function showCatchCard(f, isBest){
+  catchUse.setAttribute('href', '#' + f.svg);
+  catchRarity.textContent = RARITY[f.r].label.toUpperCase();
+  catchRarity.style.color = RARITY[f.r].col;
+  catchName.textContent = f.name;
+  catchWeight.textContent = f.kg.toFixed(2) + ' кг';
+  catchPrice.textContent = '+' + money(f.value) + ' ₽';
+  catchBest.style.display = isBest ? 'block' : 'none';
+  catchCard.classList.add('show');
+}
+
+function renderBook(){
+  bookEl.innerHTML = '';
+  const seen = FISH.filter(f => P.species[f.name]).length;
+  bookSub.textContent = 'Открыто видов: ' + seen + ' из ' + FISH.length;
+  FISH.forEach(f => {
+    const rec = P.species[f.name];
+    const el = document.createElement('div');
+    el.className = 'bookItem' + (rec ? '' : ' locked');
+    el.innerHTML =
+      '<svg viewBox="0 0 120 64" aria-hidden="true"><use href="#' + f.svg + '"></use></svg>' +
+      '<div class="bn">' + (rec ? f.name : '???') + '</div>' +
+      '<div class="bw">' + (rec ? rec.kg.toFixed(2) + ' кг' : 'не поймана') + '</div>';
+    bookEl.appendChild(el);
+  });
+}
 
 function renderShopMoney(){ shopMoney.textContent = money(P.money) + ' ₽'; }
 
@@ -487,8 +664,10 @@ function renderShop(){
     el.appendChild(b);
     cards.appendChild(el);
   });
+  renderBook();
 }
 function openShop(){
+  if (g.mode === 'landed') closePopup();
   renderShop();
   shop.classList.add('open');
   g.charging = false;
@@ -1026,7 +1205,6 @@ function drawHUD(){
   else if (g.mode === 'waiting') hint = 'Ждём поклёвки…';
   else if (g.mode === 'bite') hint = 'КЛЮЁТ! Жми!';
   else if (g.mode === 'hooked') hint = 'Держи, чтобы подтягивать. На натяжении отпускай';
-  else if (g.mode === 'landed') hint = 'Клик — продолжить';
   else if (g.mode === 'cast') hint = '';
 
   if (hint && g.mode !== 'hooked') {
@@ -1053,98 +1231,6 @@ function drawHUD(){
     ctx.fillText(g.msg, W / 2, 110);
     ctx.globalAlpha = 1;
   }
-}
-
-function drawFishShape(x, y, s, col, flip){
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(flip ? -s : s, s);
-  ctx.fillStyle = col;
-  ctx.beginPath(); ctx.ellipse(0, 0, 30, 15, 0, 0, 7); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(-26, 0);
-  ctx.lineTo(-45, -14);
-  ctx.lineTo(-39, 0);
-  ctx.lineTo(-45, 14);
-  ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(-2, -14);
-  ctx.lineTo(6, -30);
-  ctx.lineTo(16, -12);
-  ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(2, 13);
-  ctx.lineTo(9, 24);
-  ctx.lineTo(15, 11);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.22)';
-  ctx.beginPath(); ctx.ellipse(2, -3, 20, 7, -0.12, 0, 7); ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(18, -4, 4, 0, 7); ctx.fill();
-  ctx.fillStyle = '#121b22';
-  ctx.beginPath(); ctx.arc(19, -4, 2.1, 0, 7); ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,.15)';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.arc(19, 6, 5, -0.5, 0.9); ctx.stroke();
-  ctx.restore();
-}
-
-function drawPopup(){
-  if (!g.popup) return;
-  const p = g.popup;
-  const t = clamp(p.t / 0.22, 0, 1);
-  const ease = 1 - Math.pow(1 - t, 3);
-  const pw = 430, ph = 210;
-  const px = W / 2 - pw / 2, py = 128;
-
-  ctx.save();
-  ctx.globalAlpha = ease;
-  ctx.translate(W / 2, py + ph / 2);
-  ctx.scale(0.9 + 0.1 * ease, 0.9 + 0.1 * ease);
-  ctx.translate(-W / 2, -(py + ph / 2));
-
-  roundRect(px, py, pw, ph, 18);
-  ctx.fillStyle = 'rgba(6,20,30,.93)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(240,201,135,.45)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  const f = p.fish;
-  ctx.fillStyle = 'rgba(255,255,255,.04)';
-  roundRect(px + 18, py + 18, 150, 120, 14);
-  ctx.fill();
-
-  drawFishShape(px + 96, py + 78, 1.35, f.col, false);
-
-  ctx.textAlign = 'left';
-  ctx.fillStyle = RARITY[f.r].col;
-  ctx.font = '600 12px "Segoe UI",system-ui,sans-serif';
-  ctx.fillText(RARITY[f.r].label.toUpperCase(), px + 190, py + 52);
-
-  ctx.fillStyle = '#f4fbff';
-  ctx.font = '700 26px "Segoe UI",system-ui,sans-serif';
-  ctx.fillText(f.name, px + 190, py + 84);
-
-  ctx.fillStyle = 'rgba(220,238,248,.75)';
-  ctx.font = '600 16px "Segoe UI",system-ui,sans-serif';
-  ctx.fillText(f.kg.toFixed(2) + ' кг', px + 190, py + 112);
-
-  ctx.fillStyle = '#ffe9b0';
-  ctx.font = '700 22px "Segoe UI",system-ui,sans-serif';
-  ctx.fillText('+' + money(f.value) + ' ₽', px + 190, py + 146);
-
-  if (p.best) {
-    ctx.fillStyle = 'rgba(240,201,135,' + (0.65 + 0.35 * Math.sin(g.time * 6)).toFixed(2) + ')';
-    ctx.font = '700 13px "Segoe UI",system-ui,sans-serif';
-    ctx.fillText('НОВЫЙ РЕКОРД', px + 190, py + 170);
-  } else {
-    ctx.fillStyle = 'rgba(180,205,220,.45)';
-    ctx.font = '600 12px "Segoe UI",system-ui,sans-serif';
-    ctx.fillText('Клик — продолжить', px + 190, py + 170);
-  }
-
-  ctx.restore();
 }
 
 let vignette = null;
@@ -1174,7 +1260,6 @@ function draw(){
   drawFx();
   ctx.restore();
   drawHUD();
-  drawPopup();
   drawVignette();
 }
 

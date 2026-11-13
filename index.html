@@ -1247,6 +1247,30 @@ const SHOP_GREETINGS = [
 
 let phraseBag = [];
 
+const SHOP_BROKE = [
+  n => 'Нет, брат. Не хватает ' + money(n) + ' ₽.',
+  n => 'Добавь ' + money(n) + ' ₽ — и забирай.',
+  n => 'Хм. ' + money(n) + ' ₽ не хватает. Иди ещё полови.',
+  () => 'Деньги вперёд, рыбак. Лавка в долг не торгует.',
+  () => 'Ты сперва рыбу продай, потом удочки проси.',
+  () => 'Пустой кошелёк — пустые руки. Так не выйдет.',
+  () => 'Мало. Совсем мало. Приходи, как наловишь.'
+];
+
+const SHOP_THANKS = [
+  'Хорошая снасть. Не утопи.',
+  'Держи. Рыбе от неё не поздоровится.',
+  'Бери. И чтоб клёв был.',
+  'Спасибо. Возвращайся с уловом.'
+];
+
+function keeperSay(text, dur){
+  g.speech.text = text;
+  g.speech.show = dur || 4.5;
+  g.speech.timer = 11;
+  speakMumble(text);
+}
+
 function nextShopPhrase(){
   if (!phraseBag.length) {
     phraseBag = SHOP_PHRASES.map((_, i) => i);
@@ -3075,7 +3099,10 @@ function inRegister(it){
 
 function tryBuy(it){
   if (P.money < it.price) {
-    msg('Не хватает ' + money(it.price - P.money) + ' ₽', 1.8);
+    const lack = it.price - P.money;
+    msg('Не хватает ' + money(lack) + ' ₽', 1.8);
+    const line = SHOP_BROKE[Math.floor(Math.random() * SHOP_BROKE.length)];
+    keeperSay(line(lack));
     sfx.tick();
     return false;
   }
@@ -3093,6 +3120,7 @@ function tryBuy(it){
   persist();
   sfx.buy();
   msg('Куплено: ' + it.name, 1.8);
+  keeperSay(SHOP_THANKS[Math.floor(Math.random() * SHOP_THANKS.length)]);
   floatText(REGISTER.x + 64, REGISTER.y - 8, '-' + money(it.price) + ' ₽', '#ffd9a0');
   g.regFlash = 1;
 

@@ -23,6 +23,8 @@
   #btnLeave{display:none}
   body.scene-shop #btnLeave{display:inline-block}
   body.scene-shop #btnShop{display:none}
+  body.scene-store #btnLeave{display:inline-block}
+  body.scene-store #btnShop{display:none}
   .btn{border:1px solid rgba(240,201,135,.35);
     background:linear-gradient(180deg,rgba(20,40,55,.85),rgba(9,20,30,.92));
     color:#f2e2c4;padding:8px 16px;border-radius:10px;font-size:15px;letter-spacing:.02em;
@@ -1301,6 +1303,14 @@ function goShop(){
   g.charging = false;
   g.pendingScene = 'shop';
 }
+function goStore(){
+  if (g.pendingScene || g.scene === 'store') return;
+  if (!(g.mode === 'idle' || g.mode === 'landed')) return;
+  if (g.mode === 'landed') closePopup();
+  closeBestiary();
+  g.charging = false;
+  g.pendingScene = 'store';
+}
 function goLake(){
   if (g.pendingScene || g.scene === 'lake') return;
   closeBestiary();
@@ -1308,6 +1318,7 @@ function goLake(){
 }
 function syncSceneUI(){
   document.body.classList.toggle('scene-shop', g.scene === 'shop');
+  document.body.classList.toggle('scene-store', g.scene === 'store');
 }
 
 function msg(text, dur){
@@ -1575,6 +1586,11 @@ window.addEventListener('pointerdown', e => {
   g.mouse.x = p.x;
   g.mouse.y = p.y;
 
+  if (g.scene === 'store') {
+    const tb = storeHit(p.x, p.y);
+    if (tb) { catTab = tb; openCat(); }
+    return;
+  }
   if (g.scene === 'shop') {
     if (g.popup) { closePopup(); return; }
     const it = shopItemAt(p.x, p.y);
@@ -1643,7 +1659,7 @@ window.addEventListener('keydown', e => {
     press();
   }
   if (e.code === 'Escape') {
-    if (g.scene === 'shop') { goLake(); return; }
+    if (g.scene === 'shop' || g.scene === 'store') { goLake(); return; }
   }
 });
 window.addEventListener('keyup', e => {
@@ -1995,7 +2011,7 @@ function catalogClick(it){
 function openCat(){ renderCat(); catPanel.classList.add('open'); g.charging = false; g.reeling = false; }
 function closeCat(){ catPanel.classList.remove('open'); }
 
-document.getElementById('btnCat').addEventListener('click', openCat);
+document.getElementById('btnCat').addEventListener('click', goStore);
 document.getElementById('catClose').addEventListener('click', closeCat);
 catTabs.forEach(b => b.addEventListener('click', () => { catTab = b.dataset.tab; renderCat(); }));
 catPanel.addEventListener('pointerdown', e => e.stopPropagation());
@@ -2202,6 +2218,11 @@ function update(dt){
     g.hoverItem = g.held ? null : shopItemAt(g.mouse.x, g.mouse.y);
     return;
   }
+  if (g.scene === 'store') {
+    healPlayer(dt, 4);
+    return;
+  }
+
 
   if (g.mode === 'idle' || g.mode === 'landed' || g.mode === 'waiting') healPlayer(dt, 1);
   if (g.shake > 0) g.shake = Math.max(0, g.shake - dt * 26);
@@ -3043,6 +3064,220 @@ function drawShopTooltip(){
   ctx.fillText(P.money >= it.price ? 'ТАЩИ НА КАССУ' : 'НЕ ХВАТАЕТ', x + w - 14, py);
 }
 
+const STORE_ZONES = [
+  { tab: 'furn',  x: 36,  w: 272, title: 'Мебель' },
+  { tab: 'cloth', x: 340, w: 288, title: 'Одежда' },
+  { tab: 'boat',  x: 652, w: 272, title: 'Лодки' }
+];
+
+function storeHit(mx, my){
+  for (const z of STORE_ZONES) {
+    if (mx >= z.x && mx <= z.x + z.w && my >= 110 && my <= 480) return z.tab;
+  }
+  return null;
+}
+
+function drawStoreScene(){
+  const nf = nightFactor(g.tod);
+  const wall = ctx.createLinearGradient(0, 0, 0, H);
+  wall.addColorStop(0, '#5a4128');
+  wall.addColorStop(0.55, '#422d1a');
+  wall.addColorStop(1, '#221409');
+  ctx.fillStyle = wall;
+  ctx.fillRect(0, 0, W, H);
+
+  for (let x = 0; x < W; x += 64) {
+    ctx.fillStyle = 'rgba(0,0,0,.16)';
+    ctx.fillRect(x, 0, 2, H);
+    ctx.fillStyle = 'rgba(255,210,150,.04)';
+    ctx.fillRect(x + 2, 0, 3, H);
+  }
+
+  ctx.fillStyle = 'rgba(28,17,9,.85)';
+  ctx.fillRect(0, 78, W, 18);
+  ctx.fillStyle = 'rgba(255,214,160,.08)';
+  ctx.fillRect(0, 78, W, 2);
+
+  const gl = ctx.createRadialGradient(480, 60, 20, 480, 220, 520);
+  gl.addColorStop(0, 'rgba(255,200,120,.18)');
+  gl.addColorStop(1, 'rgba(255,200,120,0)');
+  ctx.fillStyle = gl;
+  ctx.fillRect(0, 0, W, H);
+
+  const fl = ctx.createLinearGradient(0, 430, 0, H);
+  fl.addColorStop(0, '#63482b');
+  fl.addColorStop(1, '#2b1a0c');
+  ctx.fillStyle = fl;
+  ctx.fillRect(0, 430, W, H - 430);
+  ctx.strokeStyle = 'rgba(255,220,170,.07)';
+  ctx.lineWidth = 2;
+  for (let x = 30; x < W; x += 70) {
+    ctx.beginPath(); ctx.moveTo(x, 430); ctx.lineTo(x - 40, H); ctx.stroke();
+  }
+
+  for (const z of STORE_ZONES) {
+    const hover = g.mouse.x >= z.x && g.mouse.x <= z.x + z.w && g.mouse.y >= 110 && g.mouse.y <= 480;
+    const cx = z.x + z.w / 2;
+
+    ctx.save();
+    ctx.globalAlpha = hover ? 0.22 : 0.1;
+    const spot = ctx.createRadialGradient(cx, 190, 20, cx, 260, 200);
+    spot.addColorStop(0, 'rgba(255,226,170,1)');
+    spot.addColorStop(1, 'rgba(255,226,170,0)');
+    ctx.fillStyle = spot;
+    ctx.fillRect(z.x, 70, z.w, 400);
+    ctx.restore();
+
+    ctx.fillStyle = hover ? 'rgba(255,232,180,.12)' : 'rgba(255,232,180,.05)';
+    roundRect(z.x, 108, z.w, 372, 16);
+    ctx.fill();
+    if (hover) {
+      ctx.strokeStyle = 'rgba(255,222,150,.75)';
+      ctx.lineWidth = 2;
+      roundRect(z.x, 108, z.w, 372, 16);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = 'rgba(20,12,6,.5)';
+    ctx.beginPath(); ctx.ellipse(cx, 432, z.w / 2 - 28, 15, 0, 0, PI2); ctx.fill();
+    ctx.fillStyle = '#5d4126';
+    roundRect(z.x + 26, 414, z.w - 52, 18, 8);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,228,180,.16)';
+    roundRect(z.x + 28, 415, z.w - 56, 5, 2.5);
+    ctx.fill();
+
+    ctx.fillStyle = '#33220f';
+    roundRect(cx - 74, 448, 148, 30, 12);
+    ctx.fill();
+    ctx.strokeStyle = hover ? '#f0c987' : 'rgba(240,201,135,.35)';
+    ctx.lineWidth = 1.6;
+    roundRect(cx - 74, 448, 148, 30, 12);
+    ctx.stroke();
+    ctx.fillStyle = hover ? '#ffe9b0' : '#d9bd99';
+    ctx.font = '700 15px "Segoe UI",system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(z.title, cx, 468);
+    ctx.textAlign = 'left';
+  }
+
+  const fItem = eqItem('furn');
+  const fz = STORE_ZONES[0];
+  const fx = fz.x + fz.w / 2;
+  ctx.fillStyle = 'rgba(60,40,22,.5)';
+  ctx.beginPath(); ctx.ellipse(fx, 424, 92, 12, 0, 0, PI2); ctx.fill();
+  ctx.strokeStyle = fItem.frame || '#3b464e';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(fx - 46, 424); ctx.lineTo(fx - 26, 350);
+  ctx.moveTo(fx + 46, 424); ctx.lineTo(fx + 26, 350);
+  ctx.moveTo(fx - 30, 352); ctx.lineTo(fx + 30, 352);
+  ctx.stroke();
+  ctx.fillStyle = fItem.seat || '#b06a55';
+  roundRect(fx - 54, 330, 108, 26, 10);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.12)';
+  roundRect(fx - 52, 332, 104, 6, 3);
+  ctx.fill();
+  ctx.fillStyle = fItem.seat || '#b06a55';
+  roundRect(fx - 44, 262, 88, 62, 12);
+  ctx.fill();
+  if (fItem.canopy) {
+    ctx.strokeStyle = '#6d5a3a';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(fx + 74, 424); ctx.lineTo(fx + 74, 220); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(fx + 74 - 66, 220);
+    ctx.arc(fx + 74, 220, 66, Math.PI, 0);
+    ctx.closePath();
+    ctx.fillStyle = fItem.canopy === 'green' ? '#54804a'
+      : fItem.canopy === 'red' ? '#8c3b34'
+      : fItem.canopy === 'gold' ? '#d9b25a' : '#e8dcc2';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60,42,20,.4)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  const cl = eqItem('cloth');
+  const cz = STORE_ZONES[1];
+  const sample = [cl, CLOTH[4], CLOTH[8]];
+  for (let i = 0; i < 3; i++) {
+    const mx = cz.x + 52 + i * 92;
+    const c = sample[i];
+    ctx.strokeStyle = '#3b3026';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(mx, 424); ctx.lineTo(mx, 386); ctx.stroke();
+    ctx.fillStyle = '#4a3a2a';
+    ctx.beginPath(); ctx.ellipse(mx, 424, 22, 6, 0, 0, PI2); ctx.fill();
+    ctx.fillStyle = c.shirt;
+    roundRect(mx - 22, 292, 44, 96, 14);
+    ctx.fill();
+    ctx.fillStyle = c.shirt2 || 'rgba(0,0,0,.2)';
+    roundRect(mx + 6, 300, 12, 80, 6);
+    ctx.fill();
+    ctx.fillStyle = '#e8b98f';
+    ctx.beginPath(); ctx.arc(mx, 272, 16, 0, PI2); ctx.fill();
+    ctx.fillStyle = c.hat;
+    if (c.hatStyle === 'wide') {
+      ctx.beginPath(); ctx.ellipse(mx, 262, 28, 7, 0, 0, PI2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(mx, 255, 14, 10, 0, Math.PI, 0); ctx.fill();
+    } else if (c.hatStyle === 'beanie') {
+      ctx.beginPath(); ctx.ellipse(mx, 258, 15, 12, 0, Math.PI, 0); ctx.fill();
+    } else if (c.hatStyle === 'cap') {
+      ctx.beginPath(); ctx.ellipse(mx, 258, 16, 11, 0, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(mx + 14, 258, 11, 4, 0.1, 0, PI2); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.ellipse(mx, 262, 24, 7, 0, 0, PI2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(mx, 255, 14, 10, 0, Math.PI, 0); ctx.fill();
+    }
+  }
+
+  const bt = eqItem('boat');
+  const bz = STORE_ZONES[2];
+  const bx = bz.x + bz.w / 2;
+  ctx.fillStyle = 'rgba(40,60,70,.35)';
+  ctx.beginPath(); ctx.ellipse(bx, 424, 100, 14, 0, 0, PI2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(bx - 96, 366);
+  ctx.quadraticCurveTo(bx - 60, 412, bx + 10, 414);
+  ctx.quadraticCurveTo(bx + 76, 414, bx + 104, 372);
+  ctx.quadraticCurveTo(bx + 60, 350, bx, 348);
+  ctx.quadraticCurveTo(bx - 60, 350, bx - 96, 366);
+  ctx.closePath();
+  const hg = ctx.createLinearGradient(0, 348, 0, 414);
+  hg.addColorStop(0, bt.hull[0]);
+  hg.addColorStop(0.55, bt.hull[1]);
+  hg.addColorStop(1, bt.hull[2]);
+  ctx.fillStyle = hg;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,12,6,.8)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.strokeStyle = bt.trim;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(bx - 92, 368);
+  ctx.quadraticCurveTo(bx, 344, bx + 102, 370);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath();
+  ctx.moveTo(bx - 78, 372);
+  ctx.quadraticCurveTo(bx, 396, bx + 88, 374);
+  ctx.quadraticCurveTo(bx, 382, bx - 78, 372);
+  ctx.closePath();
+  ctx.fill();
+
+  if (nf > 0.25) {
+    const lampGlow = ctx.createRadialGradient(480, 140, 10, 480, 140, 380);
+    lampGlow.addColorStop(0, 'rgba(255,206,140,' + (0.16 * nf).toFixed(3) + ')');
+    lampGlow.addColorStop(1, 'rgba(255,206,140,0)');
+    ctx.fillStyle = lampGlow;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
 function drawShopScene(){
   const wall = ctx.createLinearGradient(0, 0, 0, H);
   wall.addColorStop(0, '#4a3120');
@@ -3131,6 +3366,34 @@ function drawShopHotspot(){
   ctx.font = '600 12px "Segoe UI",system-ui,sans-serif';
   ctx.fillText('Лавка', bx, by + 50);
   ctx.restore();
+}
+
+function drawStoreHUD(){
+  roundRect(16, 14, 250, 54, 13);
+  ctx.fillStyle = 'rgba(4,16,26,.58)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(240,201,135,.22)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffe9b0';
+  ctx.font = '700 22px "Segoe UI",system-ui,sans-serif';
+  ctx.fillText(money(P.money) + ' ₽', 30, 42);
+  ctx.fillStyle = 'rgba(210,232,244,.62)';
+  ctx.font = '600 12px "Segoe UI",system-ui,sans-serif';
+  ctx.fillText('Витрина: мебель, одежда, лодки', 30, 59);
+
+  const hint = 'Клик по витрине — каталог · Esc — к озеру';
+  ctx.font = '600 14px "Segoe UI",system-ui,sans-serif';
+  ctx.textAlign = 'center';
+  const wdt = ctx.measureText(hint).width + 36;
+  ctx.fillStyle = 'rgba(3,14,22,.6)';
+  roundRect(W / 2 - wdt / 2, H - 54, wdt, 34, 17);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(235,246,252,.9)';
+  ctx.fillText(hint, W / 2, H - 32);
+  ctx.textAlign = 'left';
 }
 
 function drawShopHUD(){
@@ -4402,6 +4665,7 @@ function drawFx(){
 
 function drawHUD(){
   if (g.scene === 'shop') { drawShopHUD(); return; }
+  if (g.scene === 'store') { drawStoreHUD(); return; }
   ctx.textAlign = 'left';
   ctx.font = '600 13px "Segoe UI",system-ui,sans-serif';
 
@@ -4697,6 +4961,8 @@ function draw(){
   }
   if (g.scene === 'shop') {
     drawShopScene();
+  } else if (g.scene === 'store') {
+    drawStoreScene();
   } else {
     drawSky();
     drawFarShore();

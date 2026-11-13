@@ -30,6 +30,12 @@
     color:#f2e2c4;padding:8px 16px;border-radius:10px;font-size:15px;letter-spacing:.02em;
     transition:.15s;backdrop-filter:blur(6px)}
   .btn:hover{border-color:var(--gold);color:#fff;transform:translateY(-1px)}
+  .btn.icon{width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:12px}
+  .btn.icon svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.7;
+    stroke-linecap:round;stroke-linejoin:round}
+  .btn.icon:hover{background:linear-gradient(180deg,rgba(52,74,92,.95),rgba(16,30,44,.98));
+    box-shadow:0 0 0 1px rgba(240,201,135,.35),0 6px 16px rgba(0,0,0,.35)}
+  .btn.icon:active{transform:translateY(1px) scale(.96)}
   #catchCard{position:absolute;inset:0;display:none;place-items:center;pointer-events:none}
   #catchCard.show{display:grid}
   .catchBox{display:flex;align-items:center;gap:18px;width:min(430px,88%);
@@ -587,12 +593,24 @@
     <div id="ui">
       <div class="topbar">
         <button class="btn" id="btnLeave">← К озеру</button>
-        <button class="btn" id="btnLoc">Локация</button>
-        <button class="btn" id="btnSkills">Навыки</button>
-        <button class="btn" id="btnCat">Витрина</button>
-        <button class="btn" id="btnBestiary">Бестиарий</button>
-        <button class="btn" id="btnShop">Магазин</button>
-        <button class="btn" id="btnMute">Звук: вкл</button>
+        <button class="btn icon" id="btnLoc" title="Локации" aria-label="Локации">
+          <svg viewBox="0 0 24 24"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        </button>
+        <button class="btn icon" id="btnSkills" title="Навыки" aria-label="Навыки">
+          <svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.6 6.1.7-4.6 4 1.3 6-5.4-3-5.4 3 1.3-6-4.6-4 6.1-.7z"/></svg>
+        </button>
+        <button class="btn icon" id="btnCat" title="Витрина" aria-label="Витрина">
+          <svg viewBox="0 0 24 24"><path d="M4 9h16l-1.6-5H5.6z"/><path d="M5.5 9v10.5h13V9"/><path d="M9.5 19.5v-5.5h5v5.5"/></svg>
+        </button>
+        <button class="btn icon" id="btnBestiary" title="Бестиарий" aria-label="Бестиарий">
+          <svg viewBox="0 0 24 24"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H20v15.5H7.5A2.5 2.5 0 0 0 5 21z"/><path d="M9 7.5h7M9 11.5h7"/></svg>
+        </button>
+        <button class="btn icon" id="btnShop" title="Магазин снастей" aria-label="Магазин снастей">
+          <svg viewBox="0 0 24 24"><path d="M6 8h12l-1.2 12.5H7.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+        </button>
+        <button class="btn icon" id="btnMute" title="Звук включён" aria-label="Звук">
+          <svg viewBox="0 0 24 24"><path d="M4 10v4h3l4 3.5V6.5L7 10z"/><path d="M15.5 9.5a3.6 3.6 0 0 1 0 5"/></svg>
+        </button>
       </div>
       <div id="bestiary">
         <div class="bestiaryWrap">
@@ -1104,6 +1122,8 @@ const g = {
   xpView: 0,
   hurtFlash: 0,
   regFlash: 0,
+  propHover: null,
+  propAnim: {},
   charge: 0,
   charging: false,
   power: 0.5,
@@ -1589,6 +1609,8 @@ window.addEventListener('pointermove', e => {
     it.ax = p.x;
     it.ay = p.y;
   }
+  const hoverProp = propAt(p.x, p.y);
+  g.propHover = hoverProp ? hoverProp.id : null;
 });
 window.addEventListener('pointerdown', e => {
   if (e.button !== undefined && e.button !== 0) return;
@@ -1626,6 +1648,8 @@ window.addEventListener('pointerdown', e => {
     }
     return;
   }
+  const hitProp = propAt(p.x, p.y);
+  if (hitProp) { sfx.tick(); hitProp.act(); e.preventDefault(); return; }
   if (g.shopHover > 0.5 && p.x < 120) { goShop(); return; }
   if (g.mode === 'landed' && g.popup) { closePopup(); return; }
   press();
@@ -2037,7 +2061,8 @@ catPanel.addEventListener('pointerdown', e => e.stopPropagation());
 catPanel.addEventListener('click', e => { if (e.target === catPanel) closeCat(); });
 
 function updateMute(){
-  btnMute.textContent = P.muted ? 'Звук: выкл' : 'Звук: вкл';
+  btnMute.title = P.muted ? 'Звук выключен' : 'Звук включён';
+  btnMute.classList.toggle('off', P.muted);
 }
 btnMute.addEventListener('click', () => {
   P.muted = !P.muted;
@@ -2206,6 +2231,10 @@ function update(dt){
   g.xpView += (clamp(P.xp / xpNeed(P.lvl), 0, 1) - g.xpView) * kXp;
   if (g.hurtFlash > 0) g.hurtFlash = Math.max(0, g.hurtFlash - dt * 1.9);
   if (g.regFlash > 0) g.regFlash = Math.max(0, g.regFlash - dt * 2.4);
+  for (const p of PROPS) {
+    const on = g.propHover === p.id && propsActive() ? 1 : 0;
+    g.propAnim[p.id] = lerp(g.propAnim[p.id] || 0, on, 1 - Math.exp(-14 * dt));
+  }
 
   if (g.pendingScene) {
     g.fade = Math.min(1, g.fade + dt * 3.2);
@@ -3369,6 +3398,150 @@ function drawShopScene(){
   drawShopGoods();
   drawSpeechBubble();
   drawShopTooltip();
+}
+
+const PROPS = [
+  { id: 'shop',   x: 74,  y: 474, name: 'Снасти',    act: () => goShop() },
+  { id: 'best',   x: 158, y: 478, name: 'Бестиарий', act: () => openBestiary() },
+  { id: 'loc',    x: 242, y: 474, name: 'Локации',   act: () => openLoc() },
+  { id: 'cat',    x: 326, y: 478, name: 'Витрина',   act: () => goStore() },
+  { id: 'skills', x: 410, y: 474, name: 'Навыки',    act: () => openSkills() }
+];
+
+function propsActive(){ return g.scene === 'lake' && g.loc !== 'boat'; }
+
+function propAt(mx, my){
+  if (!propsActive()) return null;
+  for (const p of PROPS) {
+    const dx = (mx - p.x) / 45, dy = (my - (p.y - 22)) / 38;
+    if (dx * dx + dy * dy <= 1) return p;
+  }
+  return null;
+}
+
+function propCrate(){
+  ctx.fillStyle = '#8a6236';
+  roundRect(-16, -14, 32, 26, 3); ctx.fill();
+  ctx.fillStyle = '#6d4b28';
+  ctx.fillRect(-16, -10, 32, 3);
+  ctx.fillRect(-16, -2, 32, 3);
+  ctx.fillRect(-16, 6, 32, 3);
+  ctx.strokeStyle = 'rgba(58,38,18,.85)';
+  ctx.lineWidth = 1.6;
+  roundRect(-16, -14, 32, 26, 3); ctx.stroke();
+  ctx.strokeStyle = '#cfe6f2';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(7, -19, 4.2, 0, PI2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(7, -15); ctx.lineTo(7, -11); ctx.stroke();
+}
+
+function propBook(){
+  ctx.fillStyle = '#6b4d2c';
+  roundRect(-14, -2, 28, 11, 3); ctx.fill();
+  ctx.fillStyle = '#8a6a3f';
+  ctx.beginPath(); ctx.ellipse(0, -2, 14, 4.5, 0, 0, PI2); ctx.fill();
+  ctx.fillStyle = '#8c2f2f';
+  roundRect(-12, -19, 24, 17, 2); ctx.fill();
+  ctx.fillStyle = '#e8d9b8';
+  roundRect(-9, -17, 20, 13, 1.5); ctx.fill();
+  ctx.strokeStyle = '#b98a3e';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(2, -19); ctx.lineTo(2, -2); ctx.stroke();
+}
+
+function propSign(){
+  ctx.fillStyle = '#7a5731';
+  roundRect(-2.5, -32, 5, 34, 1.5); ctx.fill();
+  ctx.fillStyle = '#9a7040';
+  ctx.save(); ctx.translate(0, -26); ctx.rotate(-0.06); roundRect(-3, -6, 27, 12, 2); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(0, -12); ctx.rotate(0.08); roundRect(-24, -6, 27, 12, 2); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = 'rgba(60,40,20,.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(4, -26); ctx.lineTo(9, -26); ctx.moveTo(-8, -12); ctx.lineTo(-13, -12); ctx.stroke();
+}
+
+function propShowcase(){
+  ctx.fillStyle = '#6b4a2c';
+  roundRect(-15, -36, 30, 44, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(180,225,240,.20)';
+  roundRect(-12, -33, 24, 37, 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(240,201,135,.55)';
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.moveTo(-12, -21); ctx.lineTo(12, -21);
+  ctx.moveTo(-12, -9); ctx.lineTo(12, -9);
+  ctx.stroke();
+  ctx.fillStyle = '#b06a55';
+  roundRect(-8, -31, 9, 6, 1.5); ctx.fill();
+  ctx.fillStyle = '#c96b7a';
+  ctx.beginPath(); ctx.moveTo(2, -30); ctx.lineTo(9, -30); ctx.lineTo(11, -23); ctx.lineTo(0, -23); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#5b7d8a';
+  ctx.beginPath(); ctx.moveTo(-8, -18); ctx.lineTo(8, -18); ctx.lineTo(5, -12); ctx.lineTo(-5, -12); ctx.closePath(); ctx.fill();
+}
+
+function propBoard(){
+  ctx.fillStyle = '#6b4a2c';
+  roundRect(-16, -28, 32, 32, 3); ctx.fill();
+  ctx.strokeStyle = 'rgba(240,201,135,.4)';
+  ctx.lineWidth = 1;
+  roundRect(-13, -25, 26, 26, 2); ctx.stroke();
+  const cols = [-8, 0, 8];
+  for (let c = 0; c < 3; c++) {
+    for (let r = 0; r < 3; r++) {
+      ctx.beginPath();
+      ctx.arc(cols[c], -21 + r * 9, 2.3, 0, PI2);
+      ctx.fillStyle = (r < 2 && c === 1) ? '#ffd98a' : 'rgba(255,233,176,.32)';
+      ctx.fill();
+    }
+  }
+}
+
+const PROP_ART = { shop: propCrate, best: propBook, loc: propSign, cat: propShowcase, skills: propBoard };
+
+function drawPropLabel(p, a){
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, a * 1.25);
+  ctx.font = '600 11px "Segoe UI",system-ui,sans-serif';
+  const w = ctx.measureText(p.name).width + 18;
+  const y = p.y - 56;
+  roundRect(p.x - w / 2, y - 11, w, 21, 9);
+  ctx.fillStyle = 'rgba(6,18,28,.84)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(240,201,135,.55)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#ffe9b0';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(p.name, p.x, y + 1);
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+}
+
+function drawProps(){
+  if (!propsActive()) return;
+  for (const p of PROPS) {
+    const a = g.propAnim[p.id] || 0;
+    ctx.save();
+    ctx.translate(p.x, p.y - 3 * a);
+    ctx.scale(1.45, 1.45);
+    ctx.fillStyle = 'rgba(50,38,20,' + (0.18 + 0.1 * a).toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.ellipse(0, 13, 20 + 2 * a, 5.5 + 0.5 * a, 0, 0, PI2);
+    ctx.fill();
+    if (a > 0.01) {
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = 'rgba(255,224,152,.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 13, 25 + 2 * Math.sin(g.time * 5), 8, 0, 0, PI2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    (PROP_ART[p.id] || propCrate)();
+    ctx.restore();
+    if (a > 0.02) drawPropLabel(p, a);
+  }
 }
 
 function drawShopHotspot(){
@@ -5038,6 +5211,7 @@ function draw(){
       drawBeachDetails();
       drawBucket();
       drawChair();
+      drawProps();
     }
     drawFisherman();
     drawLineAndBobber();

@@ -1544,15 +1544,15 @@ window.addEventListener('pointermove', e => {
   g.mouse.y = p.y;
   if (g.scene === 'shop' && g.held) {
     const it = g.held;
-    const nx = clamp(p.x + g.grabDX, 40, 920);
-    const ny = clamp(p.y + g.grabDY, 40, 470);
     const now = performance.now();
     const dtm = Math.max(12, now - g.lastMoveTime) / 1000;
     g.lastMoveTime = now;
-    it.vx = clamp((nx - it.x) / dtm, -900, 900);
-    it.vy = clamp((ny - it.y) / dtm, -900, 900);
-    it.x = nx;
-    it.y = ny;
+    const nvx = (p.x - (it.ax === undefined ? p.x : it.ax)) / dtm;
+    const nvy = (p.y - (it.ay === undefined ? p.y : it.ay)) / dtm;
+    it.pvx = lerp(it.pvx || 0, nvx, 0.45);
+    it.pvy = lerp(it.pvy || 0, nvy, 0.45);
+    it.ax = p.x;
+    it.ay = p.y;
   }
 });
 window.addEventListener('pointerdown', e => {
@@ -1574,6 +1574,11 @@ window.addEventListener('pointerdown', e => {
       it.vy = 0;
       g.grabDX = it.x - p.x;
       g.grabDY = it.y - p.y;
+      const grabDist = Math.hypot(it.x - p.x, it.y - p.y);
+      it.pendL = it.kind === 'rod' ? Math.max(58, grabDist) : Math.max(24, grabDist);
+      it.th = Math.atan2(it.y - p.y, it.x - p.x);
+      it.om = 0;
+      it.ax = p.x; it.ay = p.y;
       g.lastMoveTime = performance.now();
       g.hoverItem = null;
       sfx.tick();
@@ -1634,6 +1639,7 @@ window.addEventListener('keyup', e => {
   if (e.code === 'Space') { spaceDown = false; release(); }
 });
 window.addEventListener('blur', () => {
+  if (g.held) { g.held.held = false; g.held = null; }
   spaceDown = false;
   g.charging = false;
   if (g.mode === 'hooked') g.reeling = false;
@@ -2707,7 +2713,26 @@ function shopItemAt(mx, my){
 
 function updateShopItems(dt){
   for (const it of g.shopItems) {
-    if (it.held) continue;
+    if (it.held) {
+      const ax = g.mouse.x, ay = g.mouse.y;
+      const L = it.pendL || 40;
+      it.th += it.om * dt;
+      it.om += (1500 / L) * Math.cos(it.th) * dt;
+      it.om *= Math.exp(-1.7 * dt);
+      const pvx = it.pvx || 0, pvy = it.pvy || 0;
+      const vt = -pvx * Math.sin(it.th) + pvy * Math.cos(it.th);
+      it.om -= clamp(vt / L, -10, 10) * 0.08;
+      it.om = clamp(it.om, -12, 12);
+      it.x = clamp(ax + Math.cos(it.th) * L, 40, 920);
+      it.y = clamp(ay + Math.sin(it.th) * L, 40, 470);
+      it.rot = it.kind === 'rod' ? it.th : it.th - Math.PI / 2;
+      it.vx = -Math.sin(it.th) * it.om * L;
+      it.vy = Math.cos(it.th) * it.om * L;
+      it.pvx = (it.pvx || 0) * Math.exp(-5 * dt);
+      it.pvy = (it.pvy || 0) * Math.exp(-5 * dt);
+      continue;
+    }
+
     it.vy += 1500 * dt;
     it.x += it.vx * dt;
     it.y += it.vy * dt;

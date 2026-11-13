@@ -2538,6 +2538,9 @@ function drawShopRod(x0, y0, x1, y1){
 }
 
 function drawShelf(x, y){
+  ctx.fillStyle = 'rgba(0,0,0,.22)';
+  ctx.fillRect(x + 4, y + 12, 220, 8);
+
   ctx.fillStyle = '#4a3120';
   ctx.fillRect(x, y, 220, 12);
   ctx.fillStyle = 'rgba(255,220,170,.08)';
@@ -2547,10 +2550,9 @@ function drawShelf(x, y){
   ctx.fillRect(x + 192, y + 12, 10, 16);
 
   const jars = [
-    [x + 28, 34, '#7a9a6a'],
-    [x + 70, 44, '#9a6a4a'],
-    [x + 116, 30, '#6a7a9a'],
-    [x + 158, 38, '#a08a4a']
+    [x + 16, 34, '#7a9a6a'],
+    [x + 50, 44, '#9a6a4a'],
+    [x + 88, 30, '#6a7a9a']
   ];
   for (const [jx, jh, col] of jars) {
     ctx.fillStyle = col;
@@ -2560,6 +2562,230 @@ function drawShelf(x, y){
     ctx.fillStyle = '#3a2a1a';
     ctx.fillRect(jx - 2, y - jh - 7, 30, 8);
   }
+
+  ctx.fillStyle = '#8f9aa2';
+  roundRect(x + 122, y - 22, 18, 22, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  roundRect(x + 124, y - 20, 4, 18, 2); ctx.fill();
+  ctx.fillStyle = '#8a7448';
+  roundRect(x + 144, y - 16, 16, 16, 2); ctx.fill();
+  ctx.fillStyle = 'rgba(60,40,20,.35)';
+  ctx.fillRect(x + 144, y - 9, 16, 2);
+
+  ctx.fillStyle = '#9a7642';
+  ctx.beginPath();
+  ctx.moveTo(x + 166, y - 18);
+  ctx.lineTo(x + 210, y - 18);
+  ctx.lineTo(x + 204, y);
+  ctx.lineTo(x + 172, y);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,40,20,.5)';
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(x + 174 + i * 12, y - 16);
+    ctx.lineTo(x + 178 + i * 12, y - 2);
+    ctx.stroke();
+  }
+
+  const floats = ['#e0674b', '#f0c987', '#7ec8a0'];
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = floats[i];
+    roundRect(x + 176 + i * 11, y - 34, 6, 18, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    roundRect(x + 177 + i * 11, y - 32, 2, 14, 1); ctx.fill();
+  }
+
+  ctx.strokeStyle = 'rgba(230,220,200,.3)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const tx = x + 34 + i * 62;
+    ctx.beginPath(); ctx.moveTo(tx, y + 12); ctx.lineTo(tx, y + 20); ctx.stroke();
+    ctx.fillStyle = 'rgba(240,232,210,.85)';
+    roundRect(tx - 7, y + 20, 14, 11, 2); ctx.fill();
+    ctx.fillStyle = 'rgba(90,70,40,.6)';
+    ctx.fillRect(tx - 4, y + 24, 8, 1.6);
+  }
+}
+
+function drawHookLine(){
+  const x = 532;
+  ctx.strokeStyle = 'rgba(232,224,204,.4)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(x, 100); ctx.lineTo(x, 196); ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    const hy = 120 + i * 26;
+    ctx.fillStyle = '#c8d2d8';
+    ctx.beginPath(); ctx.arc(x + 6, hy, 5, 0, PI2); ctx.fill();
+    ctx.fillStyle = '#8d9aa3';
+    ctx.beginPath(); ctx.arc(x + 6, hy, 2, 0, PI2); ctx.fill();
+    ctx.strokeStyle = 'rgba(200,212,220,.55)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x + 6, hy + 5);
+    ctx.quadraticCurveTo(x + 12, hy + 12, x + 8, hy + 16);
+    ctx.stroke();
+  }
+}
+
+function drawCobweb(){
+  ctx.save();
+  ctx.strokeStyle = 'rgba(225,232,236,.16)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.arc(6, 96, i * 14, 0.1, 1.5);
+    ctx.stroke();
+  }
+  for (let i = 0; i <= 3; i++) {
+    const a = 0.2 + i * 0.36;
+    ctx.beginPath();
+    ctx.moveTo(6, 96);
+    ctx.lineTo(6 + Math.cos(a) * 58, 96 + Math.sin(a) * 58);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRodRack(){
+  const x = 54, y = 170, w = 352, h = 172;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  roundRect(x + 6, y + 10, w, h, 10); ctx.fill();
+
+  const g1 = ctx.createLinearGradient(0, y, 0, y + h);
+  g1.addColorStop(0, '#5e3d23');
+  g1.addColorStop(1, '#382312');
+  ctx.fillStyle = g1;
+  roundRect(x, y, w, h, 10); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(18,9,4,.35)';
+  ctx.lineWidth = 2;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(x + i * w / 4, y + 6);
+    ctx.lineTo(x + i * w / 4, y + h - 6);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#6d4526';
+  ctx.fillRect(x + 8, y + 44, w - 16, 9);
+  ctx.fillRect(x + 8, y + h - 56, w - 16, 10);
+  ctx.fillStyle = 'rgba(255,220,170,.10)';
+  ctx.fillRect(x + 8, y + 44, w - 16, 2);
+  ctx.fillRect(x + 8, y + h - 56, w - 16, 2);
+
+  ctx.fillStyle = 'rgba(16,8,3,.45)';
+  for (let i = 0; i < 4; i++) {
+    const nx = x + 44 + i * 80;
+    ctx.fillRect(nx - 3, y + 44, 6, 9);
+    ctx.fillRect(nx - 3, y + h - 56, 6, 10);
+  }
+
+  ctx.fillStyle = '#2c1a0d';
+  roundRect(x + 126, y + 12, 100, 26, 6); ctx.fill();
+  ctx.strokeStyle = 'rgba(240,201,135,.35)';
+  ctx.lineWidth = 1;
+  roundRect(x + 126, y + 12, 100, 26, 6); ctx.stroke();
+  ctx.fillStyle = '#ffdca6';
+  ctx.font = '700 13px "Segoe UI",system-ui,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('УДОЧКИ', x + 176, y + 30);
+  ctx.textAlign = 'left';
+
+  ctx.strokeStyle = 'rgba(235,225,205,.55)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const tx = x + 250 + i * 34;
+    ctx.beginPath(); ctx.moveTo(tx, y + 53); ctx.lineTo(tx, y + 62); ctx.stroke();
+    ctx.fillStyle = 'rgba(240,232,210,.8)';
+    roundRect(tx - 7, y + 62, 14, 10, 2); ctx.fill();
+    ctx.fillStyle = 'rgba(90,70,40,.55)';
+    ctx.fillRect(tx - 4, y + 66, 8, 1.4);
+  }
+
+  drawShopRod(x + 284, y + h - 14, x + 292, y + 24);
+  ctx.restore();
+}
+
+function drawChalkboard(){
+  const x = 428, y = 126, w = 84, h = 56;
+  ctx.fillStyle = '#2a1a0e';
+  roundRect(x - 5, y - 5, w + 10, h + 10, 6); ctx.fill();
+  ctx.fillStyle = '#20302c';
+  roundRect(x, y, w, h, 4); ctx.fill();
+  ctx.strokeStyle = 'rgba(230,240,235,.5)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(x + 10, y + 16); ctx.lineTo(x + 52, y + 16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 10, y + 28); ctx.lineTo(x + 62, y + 28); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 10, y + 40); ctx.lineTo(x + 44, y + 40); ctx.stroke();
+  ctx.fillStyle = 'rgba(230,240,235,.26)';
+  ctx.fillRect(x + 58, y + 34, 16, 10);
+}
+
+function drawShopLantern(x){
+  const top = 76;
+  ctx.strokeStyle = 'rgba(18,10,5,.65)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + 34); ctx.stroke();
+
+  const gr = ctx.createRadialGradient(x, top + 58, 6, x, top + 58, 130);
+  gr.addColorStop(0, 'rgba(255,196,110,.22)');
+  gr.addColorStop(1, 'rgba(255,196,110,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(x - 130, top - 46, 260, 260);
+
+  ctx.fillStyle = '#3a2a1a';
+  ctx.fillRect(x - 13, top + 32, 26, 6);
+  ctx.fillStyle = 'rgba(255,226,168,.85)';
+  roundRect(x - 11, top + 38, 22, 28, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,225,.55)';
+  roundRect(x - 7, top + 44, 5, 16, 2); ctx.fill();
+  ctx.fillStyle = '#3a2a1a';
+  roundRect(x - 13, top + 66, 26, 7, 3); ctx.fill();
+}
+
+function drawRopeCoil(x, y){
+  ctx.strokeStyle = '#b79a6a';
+  ctx.lineWidth = 2.4;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(x, y + i * 4, 14 - i * 1.6, 5, 0, 0, PI2);
+    ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y - 26); ctx.stroke();
+  ctx.fillStyle = '#8d6d42';
+  ctx.beginPath(); ctx.arc(x, y - 26, 2.2, 0, PI2); ctx.fill();
+}
+
+function drawCounterProps(){
+  ctx.fillStyle = 'rgba(40,24,12,.30)';
+  ctx.beginPath(); ctx.ellipse(560, 344, 22, 5, 0, 0, PI2); ctx.fill();
+
+  ctx.fillStyle = '#7a3d2c';
+  roundRect(540, 326, 38, 18, 3); ctx.fill();
+  ctx.fillStyle = '#e8dcc0';
+  roundRect(543, 329, 32, 12, 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,90,50,.7)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(547, 333); ctx.lineTo(571, 333); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(547, 337); ctx.lineTo(565, 337); ctx.stroke();
+
+  ctx.fillStyle = 'rgba(200,218,226,.42)';
+  roundRect(516, 318, 20, 26, 3); ctx.fill();
+  ctx.strokeStyle = 'rgba(230,240,246,.35)';
+  ctx.lineWidth = 1;
+  roundRect(516, 318, 20, 26, 3); ctx.stroke();
+  ctx.fillStyle = '#5a666e';
+  for (let i = 0; i < 5; i++) ctx.fillRect(519 + (i % 2) * 7, 324 + (i % 3) * 5, 3, 6);
+
+  ctx.fillStyle = '#8d9aa3';
+  roundRect(590, 328, 18, 16, 4); ctx.fill();
+  ctx.strokeStyle = '#8d9aa3';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.arc(610, 336, 5, -1.2, 1.2); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  roundRect(592, 330, 4, 12, 2); ctx.fill();
 }
 
 function drawKeeper(){
@@ -2765,8 +2991,9 @@ function layoutShopGoods(snap){
   let ri = 0, si = 0;
   for (const it of g.shopItems) {
     if (it.kind === 'rod') {
-      it.restX = 122 + ri * 128;
-      it.restY = 338;
+      it.restX = 98 + ri * 80;
+      it.restY = 256;
+      it.restRot = -Math.PI / 2 - 0.05 + ri * 0.03;
       ri++;
     } else {
       it.restX = 620 + si * 62;
@@ -3374,11 +3601,18 @@ function drawShopScene(){
 
   drawShopWindow(762, 118, 132, 106);
   drawShelf(560, 232);
+  drawChalkboard();
+  drawShopLantern(690);
+  drawRopeCoil(374, 126);
+  drawRopeCoil(400, 140);
+  drawHookLine();
+  drawRodRack();
+  drawCobweb();
 
-  drawHangingFish(150, 226, 1.0, '#b9a06a', 0.8);
-  drawHangingFish(232, 238, 0.86, '#9aa7b2', 2.1);
-  drawHangingFish(312, 222, 1.05, '#8fae6a', 3.4);
-  drawHangingFish(392, 240, 0.8, '#b58a6a', 4.7);
+  drawHangingFish(96, 132, 1.0, '#b9a06a', 0.8);
+  drawHangingFish(168, 138, 0.86, '#9aa7b2', 2.1);
+  drawHangingFish(240, 128, 1.05, '#8fae6a', 3.4);
+  drawHangingFish(312, 140, 0.8, '#b58a6a', 4.7);
 
   const fl = ctx.createLinearGradient(0, 420, 0, H);
   fl.addColorStop(0, '#33210f');
@@ -3386,13 +3620,10 @@ function drawShopScene(){
   ctx.fillStyle = fl;
   ctx.fillRect(0, 420, W, H - 420);
 
-  drawShopRod(96, 470, 40, 214);
-  drawShopRod(150, 470, 96, 200);
-  drawShopRod(196, 470, 146, 210);
-
   drawKeeper();
 
   drawCounter();
+  drawCounterProps();
   drawKeeperArms();
   drawRegister();
   drawShopGoods();

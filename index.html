@@ -676,15 +676,26 @@ const ctx = cv.getContext('2d');
 const W = 960, H = 540, HORIZON = 250;
 
 function fit(){
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  cv.width = Math.round(W * dpr);
-  cv.height = Math.round(H * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const rect = cv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = rect.width > 10 ? rect.width : 960;
+  const bw = Math.min(4096, Math.max(960, Math.round(cssW * dpr)));
+  const bh = Math.round(bw * H / W);
+  cv.width = bw;
+  cv.height = bh;
+  ctx.setTransform(bw / W, 0, 0, bh / H, 0, 0);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
+  ctx.imageSmoothingEnabled = true;
+  if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'high';
 }
 fit();
 window.addEventListener('resize', fit);
+document.addEventListener('fullscreenchange', fit);
+document.addEventListener('webkitfullscreenchange', fit);
+if (window.ResizeObserver) {
+  try { new ResizeObserver(() => fit()).observe(cv); } catch (e) {}
+}
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const rnd = (a, b) => a + Math.random() * (b - a);

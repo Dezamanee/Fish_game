@@ -1124,6 +1124,7 @@ const g = {
   regFlash: 0,
   propHover: null,
   propAnim: {},
+  storeItems: [],
   charge: 0,
   charging: false,
   power: 0.5,
@@ -1621,7 +1622,7 @@ window.addEventListener('pointermove', e => {
   const p = canvasPoint(e);
   g.mouse.x = p.x;
   g.mouse.y = p.y;
-  if (g.scene === 'shop' && g.held) {
+  if ((g.scene === 'shop' || g.scene === 'store') && g.held) {
     const it = g.held;
     const now = performance.now();
     const dtm = Math.max(12, now - g.lastMoveTime) / 1000;
@@ -1646,8 +1647,27 @@ window.addEventListener('pointerdown', e => {
   g.mouse.y = p.y;
 
   if (g.scene === 'store') {
-    const tb = storeHit(p.x, p.y);
-    if (tb) { catTab = tb; openCat(); }
+    const it = storeItemAt(p.x, p.y);
+    if (it && !g.held) {
+      g.held = it;
+      it.held = true;
+      it.vx = 0;
+      it.vy = 0;
+      const grabDist = Math.hypot(it.x - p.x, it.y - p.y);
+      it.pendL = Math.max(38, grabDist);
+      it.th = Math.atan2(it.y - p.y, it.x - p.x);
+      it.om = 0;
+      it.ax = p.x; it.ay = p.y;
+      g.lastMoveTime = performance.now();
+      g.hoverItem = null;
+      sfx.tick();
+      e.preventDefault();
+      return;
+    }
+    if (!g.held) {
+      const tb = storeHit(p.x, p.y);
+      if (tb) { catTab = tb; openCat(); }
+    }
     return;
   }
   if (g.scene === 'shop') {
@@ -1686,6 +1706,14 @@ window.addEventListener('pointerup', e => {
     it.held = false;
     g.held = null;
     if (inRegister(it)) tryBuy(it);
+    else { it.vy = 0; it.vx *= 0.6; }
+    return;
+  }
+  if (g.scene === 'store' && g.held) {
+    const it = g.held;
+    it.held = false;
+    g.held = null;
+    if (inStoreRegister(it)) storeBuy(it);
     else { it.vy = 0; it.vx *= 0.6; }
     return;
   }
@@ -2275,6 +2303,11 @@ function update(dt){
         speakMumble(g.speech.text);
         buildShopGoods();
       }
+      if (g.scene === 'store') {
+        g.mode = 'idle';
+        g.charging = false;
+        buildStoreGoods();
+      }
     }
   } else {
     g.fade = Math.max(0, g.fade - dt * 2.4);
@@ -2299,6 +2332,8 @@ function update(dt){
   }
   if (g.scene === 'store') {
     healPlayer(dt, 4);
+    updateLooseItems(dt, g.storeItems);
+    g.hoverItem = g.held ? null : storeItemAt(g.mouse.x, g.mouse.y);
     return;
   }
 
@@ -3050,7 +3085,11 @@ function shopItemAt(mx, my){
 }
 
 function updateShopItems(dt){
-  for (const it of g.shopItems) {
+  updateLooseItems(dt, g.shopItems);
+}
+
+function updateLooseItems(dt, list){
+  for (const it of list) {
     if (it.held) {
       const ax = g.mouse.x, ay = g.mouse.y;
       const isRod = it.kind === 'rod';
@@ -3388,9 +3427,9 @@ function drawShopTooltip(){
 }
 
 const STORE_ZONES = [
-  { tab: 'furn',  x: 36,  w: 272, title: 'Мебель' },
-  { tab: 'cloth', x: 340, w: 288, title: 'Одежда' },
-  { tab: 'boat',  x: 652, w: 272, title: 'Лодки' }
+  { tab: 'furn',  x: 30,  w: 250, title: 'Мебель' },
+  { tab: 'cloth', x: 300, w: 250, title: 'Одежда' },
+  { tab: 'boat',  x: 570, w: 240, title: 'Лодки' }
 ];
 
 function storeHit(mx, my){
@@ -3398,6 +3437,100 @@ function storeHit(mx, my){
     if (mx >= z.x && mx <= z.x + z.w && my >= 110 && my <= 480) return z.tab;
   }
   return null;
+}
+
+const STORE_REGISTER = { x: 812, y: 392, w: 122, h: 76 };
+
+function buildStoreGoods(){
+  g.storeItems = [];
+  g.held = null;
+  const picks = [];
+  const add = (kind, list, n) => {
+    let taken = 0;
+    for (const it of list) {
+      if (taken >= n) break;
+      if (it.price > 0 && catOwned(kind).indexOf(it.id) < 0) {
+        picks.push({ kind, src: it });
+        taken++;
+      }
+    }
+  };
+  add('furn', FURN, 2);
+  add('cloth', CLOTH, 2);
+  add('boat', BOATS, 1);
+  for (const p of picks) {
+    g.storeItems.push({
+      kind: p.kind, id: p.src.id, name: p.src.name, price: p.src.price, req: p.src.req,
+      x: 0, y: 0, vx: 0, vy: 0, rot: 0, restRot: 0, held: false, len: 42, src: p.src
+    });
+  }
+  layoutStoreGoods(true);
+}
+
+function layoutStoreGoods(snap){
+  let i = 0;
+  for (const it of g.storeItems) {
+    it.restX = 118 + i * 100;
+    it.restY = 466;
+    it.restRot = (i % 2 ? 0.05 : -0.04);
+    if (snap) {
+      it.x = it.restX;
+      it.y = it.restY;
+      it.rot = it.restRot;
+      it.vx = 0;
+      it.vy = 0;
+    }
+    i++;
+  }
+}
+
+function storeItemAt(mx, my){
+  for (let i = g.storeItems.length - 1; i >= 0; i--) {
+    const it = g.storeItems[i];
+    if (Math.abs(mx - it.x) <= 42 && my >= it.y - 66 && my <= it.y + 16) return it;
+  }
+  return null;
+}
+
+function inStoreRegister(it){
+  return it.x > STORE_REGISTER.x - 18 && it.x < STORE_REGISTER.x + STORE_REGISTER.w + 18 &&
+         it.y > STORE_REGISTER.y - 45 && it.y < STORE_REGISTER.y + STORE_REGISTER.h + 45;
+}
+
+function storeReturn(it){
+  it.x = it.restX;
+  it.y = it.restY - 58;
+  it.vx = 0;
+  it.vy = 90;
+  it.rot = it.restRot - 0.45;
+}
+
+function storeBuy(it){
+  if (P.lvl < it.req) {
+    storeReturn(it);
+    msg('Нужен ' + it.req + ' уровень', 1.8);
+    sfx.tick();
+    return false;
+  }
+  if (P.money < it.price) {
+    storeReturn(it);
+    msg('Не хватает ' + money(it.price - P.money) + ' ₽', 1.8);
+    sfx.tick();
+    return false;
+  }
+  P.money -= it.price;
+  catOwned(it.kind).push(it.id);
+  P.equip[it.kind] = it.id;
+  persist();
+  sfx.buy();
+  msg('Куплено: ' + it.name, 1.8);
+  floatText(STORE_REGISTER.x + STORE_REGISTER.w / 2, STORE_REGISTER.y - 14, '-' + money(it.price) + ' ₽', '#ffd9a0');
+  g.regFlash = 1;
+  const idx = g.storeItems.indexOf(it);
+  if (idx >= 0) g.storeItems.splice(idx, 1);
+  layoutStoreGoods(true);
+  if (catPanel.classList.contains('open')) renderCat();
+  return true;
 }
 
 function drawStoreScene(){
@@ -3470,17 +3603,17 @@ function drawStoreScene(){
     roundRect(z.x + 28, 415, z.w - 56, 5, 2.5);
     ctx.fill();
 
-    ctx.fillStyle = '#33220f';
-    roundRect(cx - 74, 448, 148, 30, 12);
+    ctx.fillStyle = 'rgba(12,7,3,.62)';
+    roundRect(cx - 56, 116, 112, 26, 9);
     ctx.fill();
-    ctx.strokeStyle = hover ? '#f0c987' : 'rgba(240,201,135,.35)';
-    ctx.lineWidth = 1.6;
-    roundRect(cx - 74, 448, 148, 30, 12);
+    ctx.strokeStyle = hover ? 'rgba(255,222,150,.9)' : 'rgba(240,201,135,.4)';
+    ctx.lineWidth = 1.4;
+    roundRect(cx - 56, 116, 112, 26, 9);
     ctx.stroke();
-    ctx.fillStyle = hover ? '#ffe9b0' : '#d9bd99';
-    ctx.font = '700 15px "Segoe UI",system-ui,sans-serif';
+    ctx.fillStyle = hover ? '#ffe9b0' : 'rgba(233,214,180,.85)';
+    ctx.font = '700 13px "Segoe UI",system-ui,sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(z.title, cx, 468);
+    ctx.fillText(z.title, cx, 134);
     ctx.textAlign = 'left';
   }
 
@@ -3599,6 +3732,212 @@ function drawStoreScene(){
     ctx.fillStyle = lampGlow;
     ctx.fillRect(0, 0, W, H);
   }
+
+  drawStoreCounter();
+  drawStoreGoods();
+  drawStoreTooltip();
+}
+
+function drawStoreCounter(){
+  const top = 470;
+  ctx.fillStyle = 'rgba(16,9,3,.5)';
+  ctx.fillRect(0, top + 5, W, H - top);
+
+  const fr = ctx.createLinearGradient(0, top, 0, H);
+  fr.addColorStop(0, '#7d5732');
+  fr.addColorStop(1, '#3d2513');
+  ctx.fillStyle = fr;
+  ctx.fillRect(0, top, W, H - top);
+
+  ctx.fillStyle = 'rgba(255,222,170,.2)';
+  ctx.fillRect(0, top, W, 5);
+  ctx.strokeStyle = 'rgba(30,18,9,.35)';
+  ctx.lineWidth = 2;
+  for (let x = 44; x < W; x += 96) {
+    ctx.beginPath(); ctx.moveTo(x, top + 6); ctx.lineTo(x - 6, H); ctx.stroke();
+  }
+
+  const r = STORE_REGISTER;
+  const hot = g.held && inStoreRegister(g.held);
+  if (hot) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(120,235,170,.16)';
+    roundRect(r.x - 12, r.y - 12, r.w + 24, r.h + 30, 12);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(150,255,190,.7)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (g.regFlash > 0.01) {
+    ctx.save();
+    const cx = r.x + r.w / 2, cy = r.y + 20;
+    const rad = 110 - 36 * g.regFlash;
+    const gr = ctx.createRadialGradient(cx, cy, 4, cx, cy, rad);
+    gr.addColorStop(0, 'rgba(255,226,150,' + (0.5 * g.regFlash).toFixed(3) + ')');
+    gr.addColorStop(1, 'rgba(255,226,150,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+    ctx.restore();
+  }
+
+  ctx.fillStyle = '#2b333a';
+  roundRect(r.x - 8, r.y + 28, r.w + 16, r.h - 16, 8);
+  ctx.fill();
+
+  const body = ctx.createLinearGradient(0, r.y, 0, r.y + 48);
+  body.addColorStop(0, '#4d5a64');
+  body.addColorStop(1, '#2f383f');
+  ctx.fillStyle = body;
+  roundRect(r.x, r.y, r.w, 48, 8);
+  ctx.fill();
+  ctx.fillStyle = '#1b2329';
+  roundRect(r.x + 10, r.y + 8, r.w - 20, 24, 4);
+  ctx.fill();
+  ctx.fillStyle = '#8ae0b0';
+  ctx.font = '700 13px "Consolas",monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(money(P.money) + ' ₽', r.x + r.w / 2, r.y + 25);
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = 'rgba(220,232,240,.35)';
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(r.x + 14 + i * 20, r.y + 40, 12, 4);
+  }
+
+  ctx.fillStyle = 'rgba(255,232,180,.9)';
+  ctx.font = '600 11px "Segoe UI",system-ui,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('КАССА', r.x + r.w / 2, r.y - 16);
+  ctx.textAlign = 'left';
+}
+
+function drawMiniFurn(src){
+  const frame = src.frame || '#5a4632';
+  const seat = src.seat || '#8a5a3c';
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 22, 5, 0, 0, PI2); ctx.fill();
+
+  ctx.strokeStyle = frame;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  if (src.style === 'stool') {
+    ctx.beginPath();
+    ctx.moveTo(-12, -2); ctx.lineTo(-6, -26);
+    ctx.moveTo(12, -2); ctx.lineTo(6, -26);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-14, -2); ctx.lineTo(-10, -26);
+    ctx.moveTo(14, -2); ctx.lineTo(10, -26);
+    ctx.moveTo(-11, -42); ctx.lineTo(-10, -18);
+    ctx.moveTo(11, -42); ctx.lineTo(10, -18);
+    ctx.stroke();
+  }
+  ctx.fillStyle = seat;
+  roundRect(-20, -32, 40, 10, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.14)';
+  roundRect(-18, -31, 36, 3, 1.5); ctx.fill();
+  if (src.canopy) {
+    ctx.fillStyle = src.canopy;
+    ctx.beginPath();
+    ctx.moveTo(-24, -46); ctx.lineTo(24, -46); ctx.lineTo(16, -54);
+    ctx.lineTo(-16, -54); ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawMiniCloth(src){
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 20, 5, 0, 0, PI2); ctx.fill();
+
+  ctx.fillStyle = src.shirt || '#5a6a7a';
+  roundRect(-16, -32, 32, 26, 6); ctx.fill();
+  roundRect(-25, -30, 10, 15, 4); ctx.fill();
+  roundRect(15, -30, 10, 15, 4); ctx.fill();
+  ctx.fillStyle = src.shirt2 || src.shirt || '#46586a';
+  roundRect(-16, -17, 32, 11, 4); ctx.fill();
+
+  ctx.fillStyle = src.hat || '#c9a05a';
+  roundRect(-18, -46, 36, 7, 3.5); ctx.fill();
+  roundRect(-10, -58, 20, 13, 6); ctx.fill();
+}
+
+function drawMiniBoat(src){
+  const h = src.hull || ['#6d4a2a', '#4a3018', '#2a1a0c'];
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 26, 5, 0, 0, PI2); ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-27, -18);
+  ctx.quadraticCurveTo(0, -10, 27, -18);
+  ctx.lineTo(20, -2);
+  ctx.quadraticCurveTo(0, 5, -20, -2);
+  ctx.closePath();
+  ctx.fillStyle = h[0];
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,12,6,.7)';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  ctx.strokeStyle = src.trim || h[1];
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(-24, -16);
+  ctx.quadraticCurveTo(0, -9, 24, -16);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath();
+  ctx.moveTo(-18, -6);
+  ctx.quadraticCurveTo(0, 0, 18, -6);
+  ctx.quadraticCurveTo(0, 2, -18, -6);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawStoreGoods(){
+  for (const it of g.storeItems) {
+    ctx.save();
+    ctx.translate(it.x, it.y);
+    ctx.rotate(it.rot);
+    ctx.scale(1.45, 1.45);
+    if (it.kind === 'furn') drawMiniFurn(it.src);
+    else if (it.kind === 'cloth') drawMiniCloth(it.src);
+    else drawMiniBoat(it.src);
+    if (g.hoverItem === it && !it.held) {
+      ctx.strokeStyle = 'rgba(255,224,152,.8)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(0, 1, 34, 9, 0, 0, PI2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawStoreTooltip(){
+  const it = g.hoverItem;
+  if (!it || g.held) return;
+  const t = it.name;
+  const p = money(it.price) + ' ₽' + (P.lvl < it.req ? ' · с ' + it.req + ' ур.' : '');
+  ctx.font = '600 12px "Segoe UI",system-ui,sans-serif';
+  const w = Math.max(ctx.measureText(t).width, ctx.measureText(p).width) + 26;
+  const x = clamp(it.x, w / 2 + 8, W - w / 2 - 8);
+  const y = it.y - 78;
+  roundRect(x - w / 2, y - 14, w, 40, 9);
+  ctx.fillStyle = 'rgba(6,18,28,.86)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(240,201,135,.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffe9b0';
+  ctx.font = '600 12px "Segoe UI",system-ui,sans-serif';
+  ctx.fillText(t, x, y - 1);
+  ctx.fillStyle = 'rgba(235,246,252,.85)';
+  ctx.font = '600 11px "Segoe UI",system-ui,sans-serif';
+  ctx.fillText(p, x, y + 15);
+  ctx.textAlign = 'left';
 }
 
 function drawShopScene(){
@@ -3855,7 +4194,7 @@ function drawStoreHUD(){
   ctx.font = '600 12px "Segoe UI",system-ui,sans-serif';
   ctx.fillText('Витрина: мебель, одежда, лодки', 30, 59);
 
-  const hint = 'Клик по витрине — каталог · Esc — к озеру';
+  const hint = 'Тяни товар к кассе · клик по подиуму — каталог · Esc — к озеру';
   ctx.font = '600 14px "Segoe UI",system-ui,sans-serif';
   ctx.textAlign = 'center';
   const wdt = ctx.measureText(hint).width + 36;

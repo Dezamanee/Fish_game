@@ -4547,15 +4547,29 @@ function drawWeather(){
     }
   }
   if (ev === 'fog') {
-    for (let i = 0; i < 4; i++) {
-      const y = HORIZON - 26 + i * 36 + Math.sin(g.time * 0.5 + i) * 6;
-      const gr = ctx.createLinearGradient(0, y - 28, 0, y + 28);
-      gr.addColorStop(0, 'rgba(222,232,236,0)');
-      gr.addColorStop(0.5, 'rgba(226,235,238,.3)');
-      gr.addColorStop(1, 'rgba(222,232,236,0)');
+    ctx.save();
+    const veil = ctx.createLinearGradient(0, HORIZON - 150, 0, H + 40);
+    veil.addColorStop(0, 'rgba(216,226,230,0)');
+    veil.addColorStop(0.45, 'rgba(220,230,234,.14)');
+    veil.addColorStop(1, 'rgba(226,235,238,.22)');
+    ctx.fillStyle = veil;
+    ctx.fillRect(-20, HORIZON - 150, W + 40, H - HORIZON + 190);
+    for (let i = 0; i < 8; i++) {
+      const speed = 5 + (i % 3) * 5;
+      const cx = ((i * 211 + g.time * speed) % (W + 560)) - 280;
+      const cy = HORIZON - 84 + ((i * 43) % 200) + Math.sin(g.time * 0.21 + i * 1.7) * 14;
+      const r = 150 + ((i * 57) % 140);
+      const a = 0.09 + ((i * 31) % 8) / 100;
+      const gr = ctx.createRadialGradient(cx, cy, r * 0.12, cx, cy, r);
+      gr.addColorStop(0, 'rgba(228,237,240,' + a.toFixed(3) + ')');
+      gr.addColorStop(0.5, 'rgba(222,232,236,' + (a * 0.5).toFixed(3) + ')');
+      gr.addColorStop(1, 'rgba(220,230,234,0)');
       ctx.fillStyle = gr;
-      ctx.fillRect(-20, y - 28, W + 40, 56);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r * 1.4, r * 0.66, 0, 0, PI2);
+      ctx.fill();
     }
+    ctx.restore();
   }
   if (g.meteors && g.meteors.length) {
     for (const m of g.meteors) {

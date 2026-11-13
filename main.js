@@ -4,6 +4,7 @@ const path = require('path');
 let win = null;
 
 function createWindow() {
+  const iconName = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
   win = new BrowserWindow({
     width: 1280,
     height: 760,
@@ -12,7 +13,7 @@ function createWindow() {
     backgroundColor: '#04090e',
     title: 'Тихая заводь',
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'icon.ico'),
+    icon: path.join(__dirname, iconName),
     show: false,
     webPreferences: {
       contextIsolation: true,

@@ -1575,7 +1575,7 @@ window.addEventListener('pointerdown', e => {
       g.grabDX = it.x - p.x;
       g.grabDY = it.y - p.y;
       const grabDist = Math.hypot(it.x - p.x, it.y - p.y);
-      it.pendL = it.kind === 'rod' ? Math.max(58, grabDist) : Math.max(24, grabDist);
+      it.pendL = it.kind === 'rod' ? Math.max(58, grabDist) : Math.max(34, grabDist);
       it.th = Math.atan2(it.y - p.y, it.x - p.x);
       it.om = 0;
       it.ax = p.x; it.ay = p.y;
@@ -2715,24 +2715,29 @@ function updateShopItems(dt){
   for (const it of g.shopItems) {
     if (it.held) {
       const ax = g.mouse.x, ay = g.mouse.y;
-      const L = it.pendL || 40;
+      const isRod = it.kind === 'rod';
+      const L = it.pendL || (isRod ? 58 : 34);
+      const damp = isRod ? 1.7 : 0.85;
+      const grav = isRod ? 1500 : 1900;
+      const kick = isRod ? 0.08 : 0.24;
+
       it.th += it.om * dt;
-      it.om += (1500 / L) * Math.cos(it.th) * dt;
-      it.om *= Math.exp(-1.7 * dt);
+      it.om += (grav / L) * Math.cos(it.th) * dt;
+      it.om *= Math.exp(-damp * dt);
       const pvx = it.pvx || 0, pvy = it.pvy || 0;
       const vt = -pvx * Math.sin(it.th) + pvy * Math.cos(it.th);
-      it.om -= clamp(vt / L, -10, 10) * 0.08;
-      it.om = clamp(it.om, -12, 12);
+      it.om -= clamp(vt / L, -12, 12) * kick;
+      it.om = clamp(it.om, -16, 16);
+
       it.x = clamp(ax + Math.cos(it.th) * L, 40, 920);
       it.y = clamp(ay + Math.sin(it.th) * L, 40, 470);
-      it.rot = it.kind === 'rod' ? it.th : it.th - Math.PI / 2;
+      it.rot = isRod ? it.th : clamp(it.th - Math.PI / 2, -1.45, 1.45);
       it.vx = -Math.sin(it.th) * it.om * L;
       it.vy = Math.cos(it.th) * it.om * L;
-      it.pvx = (it.pvx || 0) * Math.exp(-5 * dt);
-      it.pvy = (it.pvy || 0) * Math.exp(-5 * dt);
+      it.pvx = (it.pvx || 0) * Math.exp(-4 * dt);
+      it.pvy = (it.pvy || 0) * Math.exp(-4 * dt);
       continue;
     }
-
     it.vy += 1500 * dt;
     it.x += it.vx * dt;
     it.y += it.vy * dt;

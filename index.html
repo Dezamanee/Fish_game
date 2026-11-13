@@ -128,6 +128,14 @@
     padding:7px 14px;border-radius:9px;font:600 13px "Segoe UI",system-ui,sans-serif;cursor:pointer}
   .catTab.on{background:linear-gradient(180deg,#3b2a17,#241708);border-color:#f0c987;color:#ffe9b0}
   .catMoney{margin-left:auto;padding-right:44px;color:#ffd98a;font:700 15px "Segoe UI",system-ui,sans-serif}
+  @keyframes panelIn{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:none}}
+  #bestiary.open .bestiaryWrap,#locPanel.open .locWrap,#skillPanel.open .skillWrap,#catPanel.open .catWrap{animation:panelIn .2s ease-out}
+  @keyframes cardPop{0%{transform:scale(1)}45%{transform:scale(1.07)}100%{transform:scale(1)}}
+  .catCard.bought{animation:cardPop .38s ease-out;border-color:#f0c987}
+  @keyframes catchIn{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:none}}
+  #catchCard.show .catchBox{animation:catchIn .24s ease-out}
+  @keyframes nodePop{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+  .skillNode.bought{animation:nodePop .32s ease-out}
   .catGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;max-height:64vh;overflow:auto;padding-right:4px}
   .catCard{position:relative;border:1px solid rgba(240,201,135,.2);border-radius:12px;padding:11px 12px;
     background:linear-gradient(180deg,rgba(20,32,42,.94),rgba(9,15,22,.96));cursor:pointer;transition:.15s;
@@ -790,6 +798,7 @@ function gainXP(n){
 
 function hurtPlayer(n){
   P.hp = Math.max(0, P.hp - n);
+  g.hurtFlash = Math.min(1, 0.5 + n / hpMax());
   persist();
 }
 function healPlayer(dt, mult){
@@ -1091,6 +1100,10 @@ const g = {
   stars: [],
   speech: { text: '', show: 0, timer: 2.2, idx: 0, lastIdx: -1, lastGreeting: '' },
   time: 0,
+  hpView: 1,
+  xpView: 0,
+  hurtFlash: 0,
+  regFlash: 0,
   charge: 0,
   charging: false,
   power: 0.5,
@@ -1904,6 +1917,7 @@ function renderSkills(){
       const full = rank >= s.max;
       const node = document.createElement('div');
       node.className = 'skillNode' + (locked ? ' locked' : '') + (rank > 0 ? ' taken' : '') + (full ? ' maxed' : '');
+      if (skPulse === s.id) { node.className += ' bought'; skPulse = null; }
       node.innerHTML =
         '<div class="skTop"><span>' + s.name + '</span><span class="skRank">' + rank + ' / ' + s.max + '</span></div>' +
         '<div class="skDesc">' + s.desc + '</div>' +
@@ -1924,6 +1938,7 @@ function buySkill(id){
   if (P.sp <= 0) { msg('Нет очков навыков — ловите рыбу', 1.8); return; }
   P.sp -= 1;
   P.skills[id] = sk(id) + 1;
+  skPulse = id;
   P.hp = Math.min(hpMax(), P.hp);
   sfx.buy();
   persist();
@@ -1963,6 +1978,8 @@ const catGrid = document.getElementById('catGrid');
 const catMoney = document.getElementById('catMoney');
 const catTabs = Array.from(document.querySelectorAll('.catTab'));
 let catTab = 'furn';
+let catPulse = null;
+let skPulse = null;
 
 function catOpen(){ return catPanel.classList.contains('open'); }
 function catItems(t){ return t === 'furn' ? FURN : t === 'cloth' ? CLOTH : BOATS; }
@@ -1980,6 +1997,7 @@ function renderCat(){
     const lvlOk = P.lvl >= it.req;
     const card = document.createElement('div');
     card.className = 'catCard' + (on ? ' on' : '') + ((!owned && !lvlOk) ? ' locked' : '');
+    if (catPulse === it.id) { card.className += ' bought'; catPulse = null; }
     let act;
     if (on) act = '<div class="catAct take">Выбрано</div>';
     else if (owned) act = '<div class="catAct use">' + verb + '</div>';
@@ -2002,6 +2020,7 @@ function catalogClick(it){
     catOwned(t).push(it.id);
   }
   P.equip[t] = it.id;
+  catPulse = it.id;
   persist();
   sfx.buy();
   msg((owned ? 'Выбрано: ' : 'Куплено: ') + it.name, 2);
@@ -2180,6 +2199,13 @@ function update(dt){
   P.tod = g.tod;
   g.pal = todPalette(g.tod);
   updateAmbient(dt);
+
+  const kHp = 1 - Math.exp(-9 * dt);
+  const kXp = 1 - Math.exp(-7 * dt);
+  g.hpView += (clamp(P.hp / hpMax(), 0, 1) - g.hpView) * kHp;
+  g.xpView += (clamp(P.xp / xpNeed(P.lvl), 0, 1) - g.xpView) * kXp;
+  if (g.hurtFlash > 0) g.hurtFlash = Math.max(0, g.hurtFlash - dt * 1.9);
+  if (g.regFlash > 0) g.regFlash = Math.max(0, g.regFlash - dt * 2.4);
 
   if (g.pendingScene) {
     g.fade = Math.min(1, g.fade + dt * 3.2);
@@ -2812,6 +2838,7 @@ function tryBuy(it){
   sfx.buy();
   msg('Куплено: ' + it.name, 1.8);
   floatText(REGISTER.x + 64, REGISTER.y - 8, '-' + money(it.price) + ' ₽', '#ffd9a0');
+  g.regFlash = 1;
 
   const idx = g.shopItems.indexOf(it);
   if (idx >= 0) g.shopItems.splice(idx, 1);
@@ -2982,6 +3009,18 @@ function drawRegister(){
   const x = REGISTER.x, w = REGISTER.w;
   const base = REGISTER.y + REGISTER.h;
   const hot = g.held && inRegister(g.held);
+
+  if (g.regFlash > 0.01) {
+    ctx.save();
+    const cx = x + w / 2, cy = REGISTER.y + 4;
+    const rad = 120 - 40 * g.regFlash;
+    const gr = ctx.createRadialGradient(cx, cy, 4, cx, cy, rad);
+    gr.addColorStop(0, 'rgba(255,226,150,' + (0.55 * g.regFlash).toFixed(3) + ')');
+    gr.addColorStop(1, 'rgba(255,226,150,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+    ctx.restore();
+  }
 
   if (hot) {
     ctx.save();
@@ -4693,7 +4732,7 @@ function drawHUD(){
   roundRect(barX, 57, barW, 9, 4.5);
   ctx.fillStyle = 'rgba(255,255,255,.13)';
   ctx.fill();
-  const xr = clamp(P.xp / xpNeed(P.lvl), 0, 1);
+  const xr = clamp(g.xpView, 0.02, 1);
   roundRect(barX, 57, Math.max(3, barW * xr), 9, 4.5);
   ctx.fillStyle = '#f0c987';
   ctx.fill();
@@ -4707,7 +4746,7 @@ function drawHUD(){
   roundRect(barX, 85, barW, 11, 5.5);
   ctx.fillStyle = 'rgba(255,255,255,.13)';
   ctx.fill();
-  const hr = clamp(P.hp / hpMax(), 0, 1);
+  const hr = clamp(g.hpView, 0.02, 1);
   roundRect(barX, 85, Math.max(3, barW * hr), 11, 5.5);
   ctx.fillStyle = hr > 0.5 ? '#63c98a' : hr > 0.25 ? '#e2b45a' : '#e0674b';
   ctx.fill();
@@ -5011,6 +5050,12 @@ function draw(){
   }
   ctx.restore();
   if (g.scene === 'lake') drawShopHotspot();
+  if (g.hurtFlash > 0.002) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(190,32,32,' + (0.32 * g.hurtFlash).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
   drawHUD();
   drawVignette();
   if (g.bestFlash > 0) {
